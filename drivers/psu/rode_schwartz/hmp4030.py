@@ -13,21 +13,33 @@ class PSUInterfaceHMP4030(PSUInterface):
 
     def _set_channel(self, chan):
         if chan is None:
-            raise ValueError
+            raise ValueError(f'Error: No channel specified on {self._model}:{self.serial}')
         self.resource.write(f"INST {CHAN_STRINGS[chan]}")
-        ret_val = self.resource.query(f'INST?')
+        # This command returns OUTP1 instead of OUT1
+        ret_val = self.resource.query(f'INST?').replace('P', '').replace('\n', '')
+
         if ret_val != CHAN_STRINGS[chan]:
-            pass
-            # TODO error handling here.
+            raise IOError(f"Error: Setting channel on {self._model}:{self.serial} Failed")
 
     def get_current(self, chan=None):
         self._set_channel(chan)
-        return self.resource.query('CURR?')
+        ret_val = self._query('MEAS:CURR?')
+        return self._parse_string(ret_val, float)
 
     def get_voltage(self, chan=None):
         self._set_channel(chan)
-        # TODO return as string or number?
-        return self.resource.query('VOLT?')
+        ret_val = self._query('MEAS:VOLT?')
+        return self._parse_string(ret_val, float)
+
+    def query_set_voltage(self, chan):
+        self._set_channel(chan)
+        ret_val = self._query('VOLT?')
+        return self._parse_string(ret_val, float)
+
+    def query_set_current(self, chan):
+        self._set_channel(chan)
+        ret_val = self._query('CURR?')
+        return self._parse_string(ret_val, float)
 
     def set_voltage(self, volts, chan=None):
         self._set_channel(chan)
@@ -38,7 +50,7 @@ class PSUInterfaceHMP4030(PSUInterface):
         self.resource.write(f"CURR {amps}")
 
     def get_identity(self):
-        return self.resource.query(cmds.SCPI_IDENTIFY)
+        return self._query(cmds.SCPI_IDENTIFY)
 
     def switch_on(self, chan=None):
         self._set_channel(chan)
@@ -49,4 +61,4 @@ class PSUInterfaceHMP4030(PSUInterface):
         self.resource.write('OUTP 0')
 
     def set_local(self):
-        self.resource.write('LOCAL')
+        self.resource.write('SYST:LOC')

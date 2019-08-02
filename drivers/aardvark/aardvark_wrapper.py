@@ -1,5 +1,6 @@
 from aardvark_py import *
 from array import ArrayType
+from clint.textui.prompt import query, options
 
 
 class Aardvark():
@@ -25,11 +26,24 @@ class Aardvark():
         # Inherited method - overridden in child class.
         raise NotImplementedError
 
+    def _check_return_code_error(self, return_code):
+        """
+        Return code check function. Raises an IOError if error code is negative
+        integer (i.e. not AA_OK).
+        """
+        if return_code >= AA_OK:
+            return return_code
+        else:
+            raise IOError(
+                f"Error! [Aardvark:{self.serial_id}] failed to communicate. " +
+                f"Aarvark error code: {return_code}"
+            )
+
     def find_aardvark_handle_uid(self, unique_id):
         if isinstance(unique_id, str):
             try:
-                self.serial_id = int(unique_id)
                 unique_id = int(unique_id)
+                self.serial_id = unique_id
             except ValueError:
                 raise ValueError("Aardvark Serial ID is not a valid integer.")
 
@@ -41,9 +55,10 @@ class Aardvark():
                 self.port = port
                 self.is_open = True
                 return aa_open(port)
-        return None
+        return None  # TODO wonder if this would be better served with an exception?
 
-    def find_free_aardvarks(self, max_aardvarks=16):
+    @staticmethod
+    def find_free_aardvarks(max_aardvarks=16):
         free_port = None
         found_port = False
         handle = None
@@ -99,17 +114,10 @@ class AardvarkI2CSPI(Aardvark):
     def _configure_handle_to_class(self):
         if self.aardvark_handle:
             ret_val = aa_configure(self.aardvark_handle, AA_CONFIG_SPI_I2C)
-            if ret_val == AA_OK:
-                # success
-                self.change_i2c_rate(self.freq_i2c)
-                self.change_spi_rate(self.freq_spi)
-            else:
-                # if we're here then we most likely have an invalid handle.
-                # Other potential errors: comm error.
-                if ret_val == AA_INVALID_HANDLE:
-                    raise ValueError("Aardvark: Invalid handle")
-                if ret_val == AA_COMMUNICATION_ERROR:
-                    pass
+            self._check_return_code_error(ret_val)
+            # success
+            self.change_i2c_rate(self.freq_i2c)
+            self.change_spi_rate(self.freq_spi)
 
     def change_i2c_rate(self, bitrate_khz):
         self.freq_i2c = bitrate_khz
@@ -126,7 +134,7 @@ class AardvarkI2CSPI(Aardvark):
         (bytes_read, data_in) = aa_i2c_read(self.aardvark_handle, slave_addr, AA_I2C_NO_FLAGS, num_bytes)
         return (bytes_read, data_in)
 
-    def i2c_write_read(self, slave_addr, msg, num_bytes_read, delay_ms):
+    def i2c_write_read(self, slave_addr, data_out, num_bytes_read, delay_ms):
         if not isinstance(data_out, ArrayType):
             data_out = array('B', data_out)  # API needs this to be a 'B' arraytype.
         num_bytes_wrote = self.i2c_write(slave_addr, data_out)
@@ -182,18 +190,18 @@ class AardvarkGPIO(Aardvark):
             new_mask = self.current_direction_mask | gpio_bitmask
             # Test the change worked...
             ret_val = aa_gpio_direction(self.aardvark_handle, new_mask)
-            if ret_val == AA_OK:
-                # Direction successfully changed, update the mask.
-                self.current_direction_mask = new_mask
-                if set_high:
-                    new_output_state = self.current_output_state | gpio_bitmask
-                else:
-                    new_output_state = self.current_output_state & (~gpio_bitmask & 0xFF)
-                ret_val = aa_gpio_set(self.aardvark_handle, new_output_state)
-                if ret_val == AA_OK:
-                    self.current_output_state = new_output_state
+            self._check_return_code_error(ret_val)
+
+            # Direction successfully changed, update the mask.
+            self.current_direction_mask = new_mask
+            if set_high:
+                new_output_state = self.current_output_state | gpio_bitmask
             else:
-                pass  # todo raise error.
+                new_output_state = self.current_output_state & (~gpio_bitmask & 0xFF)
+            ret_val = aa_gpio_set(self.aardvark_handle, new_output_state)
+            self._check_return_code_error(ret_val)
+
+            self.current_output_state = new_output_state
 
     def gpio_set_input(self, gpio, pullup_on):
         if self.aardvark_handle:
@@ -203,32 +211,29 @@ class AardvarkGPIO(Aardvark):
             new_mask = self.current_direction_mask & (~gpio_bitmask & 0xFF)
 
             ret_val = aa_gpio_direction(self.aardvark_handle, new_mask)
+            self._check_return_code_error(ret_val)
 
-            if ret_val == AA_OK:
-                self.current_direction_mask = new_mask
-                if pullup_on:
-                    new_pullup = self.current_pullup_mask | gpio_bitmask
-                else:
-                    new_pullup = self.current_pullup_mask & (~gpio_bitmask & 0xFF)
+            self.current_direction_mask = new_mask
+            if pullup_on:
+                new_pullup = self.current_pullup_mask | gpio_bitmask
+            else:
+                new_pullup = self.current_pullup_mask & (~gpio_bitmask & 0xFF)
 
-                ret_val = aa_gpio_pullup(self.aardvark_handle, new_pullup)
-                if ret_val == AA_OK:
-                    self.current_pullup_mask = new_pullup
+            ret_val = aa_gpio_pullup(self.aardvark_handle, new_pullup)
+            self._check_return_code_error(ret_val)
+            self.current_pullup_mask = new_pullup
 
     def gpio_read_input(self, gpio):
         if self.aardvark_handle:
             gpio_bitmask = self._get_gpio_bitmask(gpio)
             ret_val = aa_gpio_get(self.aardvark_handle)
             # It can be negative for errors:
-            if ret_val >= 0:
-                state = ret_val & gpio_bitmask
-                if state > 0:
-                    return 1
-                else:
-                    return 0
+            self._check_return_code_error(ret_val)
+            state = ret_val & gpio_bitmask
+            if state > 0:
+                return 1
             else:
-                # Need to come up with error exceptions here.
-                pass
+                return 0
 
     def _get_gpio_bitmask(self, gpio):
         try:
@@ -239,7 +244,7 @@ class AardvarkGPIO(Aardvark):
 
 if __name__ == "__main__":
     """
-    Test code.
+    Test code for Aardvark GPIO.
     Assuming pin:pin looped
     Pin 1: Pin 3
     Pin 5: Pin 7
@@ -248,21 +253,19 @@ if __name__ == "__main__":
     Loop back and drive each other.
     """
 
-    value_invalid = True
-    # Find an aardvark. (2237928392)
-    while value_invalid:
-        serial = input("What is the serial number of the aardvark? ")
-        aard = AardvarkGPIO(serial=serial)
-        if aard.aardvark_handle is not None:
-            value_invalid = False
-        else:
-            print(f"Serial number {serial} not found!")
+    (num, ports, unique_ids) = Aardvark.find_free_aardvarks()
+    prompt_options = []
+    for i in range(num):
+        prompt_options.append({'selector': str(i), 'prompt': unique_ids[i], 'return': unique_ids[i]})
+    aardvark_uid = options("What aardvark?", prompt_options, default=0)
+    aard = AardvarkGPIO(serial=aardvark_uid)
 
     dict_pin_pairs = {
         1: 3,
         5: 7,
         8: 9
     }
+    passed = True
 
     for key, value in dict_pin_pairs.items():
         for i in range(2):
@@ -277,12 +280,16 @@ if __name__ == "__main__":
             aard.gpio_set_output(pin1, False)
 
             input2 = aard.gpio_read_input(pin2)
+
             if input2 != 0:  # We're not driving the pin at this point.
                 print(f"Error! input pin {pin2} is not reading (low) output pin {pin1}!")
-                break
+                passed = False
 
             aard.gpio_set_output(pin1, True)
             input2 = aard.gpio_read_input(pin2)
+
             if input2 != 1:
                 print(f"Error! input pin {pin2} is not reading (high) output pin {pin1}!")
-                break
+                passed = False
+
+    print(f"GPIO Test has {'[PASSED]' if passed else '[FAILED]'}")

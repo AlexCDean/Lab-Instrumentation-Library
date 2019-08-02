@@ -3,7 +3,7 @@ from ....drivers.common import scpi_commands as cmds
 import visa
 
 
-class LoadHP605A(LoadInterface):
+class LoadInterfaceHP605A(LoadInterface):
     def get_identity(self):
         return self.resource.query(cmds.SCPI_IDENTIFY)
 

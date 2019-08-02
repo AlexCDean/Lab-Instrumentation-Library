@@ -1,34 +1,25 @@
-from ...drivers.utilities import list_devices, get_device
-from ...drivers.common.scpi_commands import SCPI_IDENTIFY
-from ...errors import VisaIOError
+from ...drivers.base_instrument_interface import BaseInterface
 
 
-class PSUInterface():
+class PSUInterface(BaseInterface):
     _model = ""
 
     def __init__(self, **kwargs):
         self.resource = kwargs.pop('resource', None)
         self.serial = kwargs.pop('serial', None)
         if self.resource is None and self.serial is not None:
+            if isinstance(self.serial, int):
+                self.serial = str(self.serial)
             self.find_by_serial(self.serial)
 
     def set_local(self):
         raise NotImplementedError
 
-    def find_by_serial(self, serial):
-        if not self._model:
-            print(f"{self.__class__.__name__} interface does not have model defined yet")
-            raise NotImplementedError
-        for d in list_devices():
-            dev = get_device(d)
-            try:
-                identity = dev.query(SCPI_IDENTIFY)
-            except VisaIOError:
-                continue
-            if self._model in identity:
-                if self.serial in identity:
-                    self.resource = dev
-                    return
+    def query_set_current(self, chan=None):
+        raise NotImplementedError
+
+    def query_set_voltage(self, chan=None):
+        raise NotImplementedError
 
     # Current return should be int amps.
     def get_current(self, chan=None):

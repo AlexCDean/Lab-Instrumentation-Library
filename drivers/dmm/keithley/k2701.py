@@ -1,6 +1,10 @@
 from ..dmm_interface import DMMInterface
 from ....errors import BadData
 import visa
+from ...common.scpi_commands import SCPI_IDENTIFY
+
+
+MAX_KEITHLEY_BAUD = 115200
 MAX_SLOT_CHANNELS = 20
 MAX_SLOTS = 2
 SLOT_ONE = 1
@@ -11,15 +15,15 @@ SLOT_TWO = 2
 class DMMInterfaceK2701(DMMInterface):
     _model = "KEITHLEY"
     overflow_number = 9.9E37
+    index_serial = 2
+    identity_delimiter = ','
 
     def disable_all_channels(self):
         """
         Opens all relays in the keithley slots.
         """
         cmd = "ROUTe:OPEN:ALL"
-        self.resource.write(cmd)
-        # TODO error handling here - check number of open channels etc.
-        # Return an error code or OK?
+        self._write(cmd)
 
     def enable_channel(self, chan):
         """
@@ -28,8 +32,7 @@ class DMMInterfaceK2701(DMMInterface):
         slot, chan = self._get_slot_channel_value(chan)
         slot_chan_str = self._get_slot_channel_str(slot, chan)
         cmd = f"ROUTe:CLOSE {slot_chan_str}"
-        self.resource.write(cmd)
-        # TODO error handling.
+        self._write(cmd)
 
     def _get_slot_channel_value(self, chan):
         if chan > MAX_SLOT_CHANNELS:
@@ -38,7 +41,7 @@ class DMMInterfaceK2701(DMMInterface):
             return SLOT_ONE, chan
 
     def _get_slot_channel_str(self, slot, chan):
-        return '(@%s%s)' % (str(slot).zfill(1), str(chan).zfill(2))
+        return '(@%01d%02d)' % (slot, chan)
 
     def _parse_string_data(self, units, string, chan):
         try:
@@ -58,7 +61,7 @@ class DMMInterfaceK2701(DMMInterface):
             raise ValueError
         slot, chan = self._get_slot_channel_value(chan)
         cmd = 'MEASure:VOLTage:DC? %s' % self._get_slot_channel_str(slot, chan)
-        raw = self.resource.query(cmd)
+        raw = self._query(cmd)
         if isinstance(raw, str):
             return self._parse_string_data(units, raw, chan)
         else:
@@ -71,7 +74,9 @@ class DMMInterfaceK2701(DMMInterface):
         slot, chan = self._get_slot_channel_value(chan)
         slot_chan_str = self._get_slot_channel_str(slot, chan)
         cmd = f'MEASure:RESistance? {slot_chan_str}'
-        raw = self.resource.query(cmd)
+
+        raw = self._query(cmd)
+
         if isinstance(raw, str):
             return self._parse_string_data(units, raw, chan)
         else:
@@ -83,7 +88,7 @@ class DMMInterfaceK2701(DMMInterface):
             raise ValueError
         slot, chan = self._get_slot_channel_value(chan)
         cmd = 'MEASure:VOLTage:AC? %s' % self._get_slot_channel_str(slot, chan)
-        raw = self.resource.query(cmd)
+        raw = self._query(cmd)
         if isinstance(raw, str):
             return self._parse_string_data(units, raw, chan)
         else:
@@ -95,9 +100,27 @@ class DMMInterfaceK2701(DMMInterface):
             raise ValueError
         slot, chan = self._get_slot_channel_value(chan)
         cmd = 'MEAS:TEMP? %s' % self._get_slot_channel_str(slot, chan)
-        raw = self.resource.query(cmd)
+
+        raw = self._query(cmd)
         if isinstance(raw, str):
             return self._parse_string_data(units, raw, chan)
         else:
             return raw
 
+    def get_mac_address(self):
+        cmd = 'SYST:COMM:ETH:MAC?'
+
+        raw = self._query(cmd)
+        return raw
+
+    def get_serial_id(self):
+        cmd = SCPI_IDENTIFY
+
+        raw = self._query(cmd)
+
+        ls_substrings = raw.split(self.identity_delimiter)
+
+        try:
+            return ls_substrings[self.index_serial]
+        except IndexError:
+            return IOError("Error: Could not get serial number")

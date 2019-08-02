@@ -27,12 +27,12 @@ class PSUInterface9130(PSUInterface):
 
     def set_voltage(self, volts, chan=None):
         self._sel_chan(chan)
-        volts /= 1000.0
+        volts *= 1000.0
         self.resource.write('VOLT %imV' % volts)
 
     def set_current(self, amps, chan=None):
         self._sel_chan(chan)
-        amps /= 1000.0
+        amps *= 1000.0
         self.resource.write('CURR %imA')
 
     def switch_on(self, chan=None):

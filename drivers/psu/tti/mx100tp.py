@@ -9,12 +9,20 @@ class PSUInterfaceMX100TP(PSUInterface):
     def get_current(self, chan=None):
         if chan is None:
             raise ValueError
-        return self.resource.query('I%iO?' % chan)
+        return self._query('I%iO?' % chan)
 
     def get_voltage(self, chan=None):
         if chan is None:
             raise ValueError
-        return self.resource.query('V%iO?' % chan)
+        return self._query('V%iO?' % chan)
+
+    def query_set_current(self, chan):
+        return self._query(f"I{chan}?")
+
+    def query_set_voltage(self, chan):
+        ret_val = self._query(f"V{chan}?")
+        stripped = ret_val.strip(f'V{chan}')
+        return self._parse_string(stripped, float)
 
     def set_voltage(self, volts, chan=None):
         if chan is None:
@@ -27,7 +35,7 @@ class PSUInterfaceMX100TP(PSUInterface):
         self.resource.write("I%i %f" % (chan, amps))
 
     def get_identity(self):
-        return self.resource.query(cmds.SCPI_IDENTIFY)
+        return self._query(cmds.SCPI_IDENTIFY)
 
     def switch_on(self, chan=None):
         if chan is None:

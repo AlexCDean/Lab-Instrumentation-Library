@@ -20,7 +20,10 @@ def get_device(resource, path=None):
             print("Could not choose correct visa path!")
             return None
     rm = visa.ResourceManager(path)
-    return rm.open_resource(resource)
+    try:
+        return rm.open_resource(resource)
+    except visa.VisaIOError as err:
+        raise IOError(err)  # Resource is busy or non-existent.
 
 
 def _auto_choose_path():
