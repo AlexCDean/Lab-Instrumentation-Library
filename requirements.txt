@@ -1,2 +1,15 @@
-pyvisa==1.9.0 
-aardvark_py==5.30.2
+aardvark-py==5.40
+args==0.1.0
+clint==0.5.1
+colorama==0.4.4
+commonmark==0.9.1
+importlib-metadata==4.8.1
+libusb==1.0.23b7
+Pygments==2.10.0
+pyserial==3.5
+pyusb==1.2.1
+PyVISA==1.11.3
+PyVISA-py==0.5.2
+rich==10.12.0
+typing-extensions==3.10.0.2
+zipp==3.6.0

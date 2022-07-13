@@ -1,0 +1,21 @@
+from enum import Enum
+class Actions(Enum):
+    GO_BACK = 1
+    SET_VOLTAGE = 2
+    SET_CURRENT = 3
+    READ_VOLTAGE = 4
+    READ_CURRENT = 5
+    READ_SET_VOLTAGE = 6
+    READ_SET_CURRENT = 7
+    ENABLE_CHANNEL = 8
+    DISABLE_CHANNEL = 9
+    GET_CHANNEL_STATUS = 10
+    CONTINOUSLY_PRINT_STATUS = 11 # Print the status of every channel (use where applicable)
+    ENABLE_ALL_CHANNELS = 11
+    DISABLE_ALL_CHANNELS = 12
+    READ_TEMPERATURE = 13
+    READ_MAC_ADDRESS = 14
+    READ_SERIAL_ID = 15
+    READ_IMPEDANCE = 16
+    WRITE_CUSTOM_CMD = 17
+    QUERY_CUSTOM_CMD = 18

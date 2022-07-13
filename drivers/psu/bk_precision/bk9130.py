@@ -1,21 +1,22 @@
-from ..psu_interface import PSUInterface
+from ...psu.psu_interface import PSUInterface
 from ...common import scpi_commands as cmds
 
 
 class PSUInterface9130(PSUInterface):
-    _model = "bk9130" # TODO verify
-
+    _model = "bk9130"
+    channels = [1, 2, 3]
     def __init__(self, **kwargs):
-        super(PSUInterface9130, self).__init__(**kwargs)
+        # TODO we do not use BK9130s and this was developed theoretically. 
+        raise NotImplementedError("Not tested on BK9130s")
+        super().__init__(**kwargs)
         if self.resource:
             self.resource.write_termination = '\n'
             self.resource.read_termination = '\n'
 
     def _sel_chan(self, chan):
-        if chan is None:
-            print("Channel not selected!")
+        if chan not in self.channels:
             raise ValueError
-        self.resource.write('INST:NSEL %i' % chan)  # TODO try out.
+        self._write(f'INST:NSEL {chan}')  # TODO try out.
 
     def get_current(self, chan=None):
         self._sel_chan(chan)
@@ -28,23 +29,23 @@ class PSUInterface9130(PSUInterface):
     def set_voltage(self, volts, chan=None):
         self._sel_chan(chan)
         volts *= 1000.0
-        self.resource.write('VOLT %imV' % volts)
+        self._write('VOLT %imV' % volts)
 
     def set_current(self, amps, chan=None):
         self._sel_chan(chan)
         amps *= 1000.0
-        self.resource.write('CURR %imA')
+        self._write('CURR %imA')
 
     def switch_on(self, chan=None):
         self._sel_chan(chan)
-        self.resource.write('OUTP 1')
+        self._write('OUTP 1')
 
     def switch_off(self, chan=None):
         self._sel_chan(chan)
-        self.resource.write('OUTP 0')
+        self._write('OUTP 0')
 
     def get_identity(self):
         return self.resource.query(cmds.SCPI_IDENTIFY)
 
     def set_local(self):
-        self.resource.write('SYST:LOC')
+        self._write('SYST:LOC')

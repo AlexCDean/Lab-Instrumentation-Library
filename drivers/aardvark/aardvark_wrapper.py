@@ -3,11 +3,11 @@ from array import ArrayType
 from clint.textui.prompt import query, options
 
 
-class Aardvark():
+class Aardvark:
     # Abstract class. Should be inherited from only.
     is_open = False
     port = None
-
+    _model = "Not Set" # For compatibility with other instrumentation interface
     def __init__(self, handle=None, serial=None, **kwargs):
         self.aardvark_handle = handle
         self.serial_id = serial
@@ -59,9 +59,6 @@ class Aardvark():
 
     @staticmethod
     def find_free_aardvarks(max_aardvarks=16):
-        free_port = None
-        found_port = False
-        handle = None
         (num, ports, unique_ids) = aa_find_devices_ext(max_aardvarks, max_aardvarks)
         ports_to_delete = []
         unique_ids_to_delete = []
@@ -158,7 +155,6 @@ class AardvarkI2CSPI(Aardvark):
 
 
 class AardvarkGPIO(Aardvark):
-
     # Mapping the pinout to the actual GPIO bit masks.
     # This is to maintain a consistent interface api for the GPIO calls.
     _dict_pin_gpio = {

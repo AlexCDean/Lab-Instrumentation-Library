@@ -1,9 +1,13 @@
-from ...drivers.base_instrument_interface import BaseInterface
+from ..base_instrument_interface import BaseInterface
 
 
 class DMMInterface(BaseInterface):
-    _model = ""
+    def enable_channel(self, chan):
+        raise NotImplementedError
 
+    def disable_channel(self, chan):
+        raise NotImplementedError
+        
     def get_voltage_dc(self, chan):
         raise NotImplementedError
 
@@ -20,4 +24,10 @@ class DMMInterface(BaseInterface):
         raise NotImplementedError
 
     def get_identity(self):
+        raise NotImplementedError
+
+    def get_mac_address(self):
+        raise NotImplementedError
+
+    def get_serial_id(self):
         raise NotImplementedError

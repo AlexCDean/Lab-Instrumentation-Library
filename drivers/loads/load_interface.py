@@ -1,8 +1,7 @@
-from ...drivers.base_instrument_interface import BaseInterface
+from ..base_instrument_interface import BaseInterface
 
 
 class LoadInterface(BaseInterface):
-    _model = ""
 
     def set_level(self, value, chan=None):
         raise NotImplementedError
